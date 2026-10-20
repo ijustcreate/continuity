@@ -31,6 +31,19 @@
     let count=0; threads.forEach(t=>{ if(t.author.handle===handle) count++; (t.comments||[]).forEach(c=>{if(c.author.handle===handle) count++;});});
     return count;
   }
+  function originFor(handle){
+    for(const t of threads){
+      if(t.author.handle===handle || (t.comments||[]).some(c=>c.author.handle===handle)) return t;
+    }
+    return null;
+  }
+  function receipt(handle,currentThread,explicitSource){
+    const origin=originFor(handle);
+    const source=explicitSource || origin?.id || "unresolved";
+    const recorded=currentThread.recorded || currentThread.date;
+    const mode=currentThread.mode || "UNSPECIFIED";
+    return "RECEIPT · origin "+source+" · recorded "+recorded+" · "+mode.toLowerCase();
+  }
   function renderConcepts(){
     conceptList.innerHTML = allUsers().map(u => {
       return '<div class="concept" data-concept="'+u.handle+'">'+avatar(u)+'<div><div class="name">'+u.handle+'</div><div class="count">'+commentsByUser(u.handle)+' appearances</div></div></div>';
@@ -40,8 +53,8 @@
       render();
     }));
   }
-  function commentMarkup(c){
-    return '<div class="comment" data-stance="'+c.stance+'"><div class="comment-head">'+avatar(c.author)+'<div><div class="handle">'+c.author.handle+'</div><div class="sub">'+(c.author.bio||"concept account")+'</div></div><span class="relation">'+c.stance+'</span></div><p>'+c.body+'</p></div>';
+  function commentMarkup(c,t){
+    return '<div class="comment" data-stance="'+c.stance+'"><div class="comment-head">'+avatar(c.author)+'<div><div class="handle">'+c.author.handle+'</div><div class="sub">'+(c.author.bio||"concept account")+'</div></div><span class="relation">'+c.stance+'</span></div><p>'+c.body+'</p><div class="receipt">'+receipt(c.author.handle,t,c.sourceThread)+'</div></div>';
   }
   function threadVisible(t){
     const filterOk = activeFilter==="all" || (t.comments||[]).some(c=>c.stance===activeFilter);
@@ -50,7 +63,8 @@
   }
   function threadMarkup(t){
     const commentCount=(t.comments||[]).length;
-    return '<article class="thread-card" data-thread="'+t.id+'"><div class="post"><div class="post-head">'+avatar(t.author)+'<div class="post-meta"><div class="handle">'+t.author.handle+'</div><div class="sub">'+t.date+' · '+t.author.bio+'</div></div><span class="spawn">spawned by this thought</span></div><h3>'+t.title+'</h3><p>'+t.body+'</p><div class="post-tags">'+t.tags.map(x=>'<span class="tag">'+x+'</span>').join("")+'<span class="tag">'+commentCount+' replies</span></div></div><div class="comments">'+(t.comments||[]).map(commentMarkup).join("")+'</div></article>';
+    const sourceLine='<div class="source-line"><span>'+t.id.toUpperCase()+' · '+(t.mode||"UNSPECIFIED")+'</span><span>'+((t.source||"source unresolved"))+' · recorded '+(t.recorded||t.date)+'</span></div>';
+    return '<article class="thread-card" data-thread="'+t.id+'"><div class="post"><div class="post-head">'+avatar(t.author)+'<div class="post-meta"><div class="handle">'+t.author.handle+'</div><div class="sub">'+t.date+' · '+t.author.bio+'</div></div><span class="spawn">spawned by this thought</span></div>'+sourceLine+'<h3>'+t.title+'</h3><p>'+t.body+'</p><div class="post-tags">'+t.tags.map(x=>'<span class="tag">'+x+'</span>').join("")+'<span class="tag">'+commentCount+' replies</span></div></div><div class="comments">'+(t.comments||[]).map(c=>commentMarkup(c,t)).join("")+'</div></article>';
   }
   function render(){
     const visible=threads.filter(threadVisible);
